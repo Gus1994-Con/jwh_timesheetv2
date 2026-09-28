@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>JW Hugo Time Sheet</title>
+<style>
+  :root{--navy:#1c2b3a;--navy-light:#2c4256;--accent:#d68a2c;--bg:#f4f6f8;--card:#fff;--border:#dde3e8;--text:#1c2b3a;--muted:#8b98a4;--red:#c94b4b;--green:#2e8b57;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);padding-bottom:100px;}
+  header{background:var(--navy);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+  header h1{margin:0;font-size:18px;}
+  header .sub{font-size:12px;color:#c7d0d8;margin-top:2px;}
+  #sync{font-size:12px;font-weight:600;padding:5px 10px;border-radius:14px;background:#ffffff22;white-space:nowrap;}
+  #sync.ok{color:#9be3b8;} #sync.saving{color:#ffe08a;} #sync.off{color:#ffb3b3;}
+  .tabs{display:flex;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:58px;z-index:9;}
+  .tab{flex:1;text-align:center;padding:12px 0;font-size:14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;}
+  .tab.active{color:var(--navy);border-bottom-color:var(--accent);}
+  main{padding:12px;}
+  .section{display:none;} .section.active{display:block;}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;}
+  .panel h3{margin:0 0 10px;font-size:14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  label{display:block;font-size:11px;color:var(--muted);margin:8px 0 3px 2px;}
+  .grid2 label{margin-top:0;}
+  input,select{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:15px;background:#fbfcfd;color:var(--text);}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px;}
+  .quick button,.pbtn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:600;color:var(--navy);}
+  .pbtn.primary{background:var(--navy);color:#fff;border-color:var(--navy);width:100%;padding:12px;font-size:14px;}
+  .pbtn.accent{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .pbtn.danger{color:var(--red);border-color:var(--red);}
+  .toolbar{display:flex;gap:8px;margin-top:10px;}
+  .toolbar .pbtn{flex:1;}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  th,td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;}
+  th{font-size:10px;text-transform:uppercase;color:var(--muted);}
+  .num{text-align:right;}
+  tr.total td{font-weight:700;border-top:2px solid var(--navy);}
+  details summary{font-size:14px;font-weight:700;cursor:pointer;}
+  .day-head{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:var(--navy);margin:16px 4px 6px;}
+  .day-head span:last-child{color:var(--accent);}
+  .entry{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin-bottom:6px;display:flex;justify-content:space-between;gap:10px;cursor:pointer;}
+  .entry .n{font-weight:700;font-size:15px;}
+  .entry .m{font-size:12px;color:var(--muted);margin-top:2px;}
+  .entry .h{text-align:right;white-space:nowrap;}
+  .entry .h b{display:block;font-size:15px;}
+  .entry .h span{font-size:12px;color:var(--muted);}
+  .badge{display:inline-block;font-size:10px;font-weight:700;background:#fff3dc;color:#a86a14;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
+  .empty-hint{text-align:center;color:var(--muted);font-size:13px;padding:30px 10px;}
+  .fab{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:20;background:var(--accent);color:#fff;border:none;border-radius:30px;padding:15px 22px;font-size:16px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.3);}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:none;align-items:flex-end;justify-content:center;}
+  .overlay.open{display:flex;}
+  .sheet{background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto;}
+  .sheet h2{margin:0 0 4px;font-size:17px;}
+  .sheet .btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .sheet .btns .pbtn{flex:1;padding:12px;font-size:14px;}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:90px;background:var(--navy);color:#fff;padding:9px 16px;border-radius:20px;font-size:13px;z-index:40;opacity:0;transition:opacity .2s;pointer-events:none;}
+  .toast.show{opacity:1;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .chip{background:#eef2f5;border-radius:16px;padding:5px 6px 5px 11px;font-size:13px;display:flex;align-items:center;gap:6px;}
+  .chip button{border:none;background:none;color:var(--red);font-size:16px;padding:0 4px;line-height:1;}
+  .addrow{display:flex;gap:8px;} .addrow button{border:none;background:var(--accent);color:#fff;border-radius:8px;padding:0 16px;font-weight:700;}
+  .bulk{display:flex;gap:6px;align-items:center;margin:4px 0 8px;} .bulk input{flex:1;min-width:0;} .bulk .pbtn{white-space:nowrap;}
+  .brow{border:1px solid var(--border);border-radius:10px;padding:9px 10px;margin-bottom:6px;}
+  .brow.on{border-color:var(--accent);background:#fff8ef;}
+  .bcheck{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--text);margin:0;}
+  .bcheck input{width:20px;height:20px;padding:0;}
+  .bdet{display:none;gap:6px;margin-top:8px;align-items:center;} .brow.on .bdet{display:flex;}
+  .bdet input,.bdet select{flex:1;min-width:0;padding:8px 6px;font-size:14px;}
+  .bdet .bh{font-size:12px;font-weight:700;color:var(--accent);min-width:44px;text-align:right;}
+  .daynav{display:flex;gap:6px;align-items:center;} .daynav input{flex:1;min-width:0;} .daynav .pbtn{padding:10px 12px;font-size:14px;}
+  .xf{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:8px;} .xf summary{font-size:14px;font-weight:600;cursor:pointer;}
+  .xlist{max-height:190px;overflow-y:auto;margin-top:8px;}
+  .xlist label.xi{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--text);margin:0;padding:7px 2px;} .xlist input{width:20px;height:20px;padding:0;}
+  .setup-banner{background:#fff3cd;color:#7a5b00;font-size:12px;padding:10px 14px;display:none;}
+</style>
+</head>
+<body>
+<div class="setup-banner" id="setupBanner">⚠️ Backend not configured. Paste your Google Apps Script URL into <code>API_URL</code>.</div>
+<header>
+  <div><h1>JW Hugo Time Sheet</h1><div class="sub">Everything captured, live</div></div>
+  <div id="sync" class="ok">✓ Saved</div>
+</header>
+<div class="tabs">
+  <div class="tab active" data-tab="entries">Entries</div>
+  <div class="tab" data-tab="names">Names &amp; Import</div>
+</div>
+
+<main>
+  <div class="section active" id="section-entries">
+    <div class="panel">
+      <label style="margin-top:0">Day</label>
+      <div class="daynav"><button class="pbtn" id="dPrev">‹</button><input type="date" id="fDay"><button class="pbtn" id="dNext">›</button><button class="pbtn" id="dToday">Today</button></div>
+      <div class="grid2" style="margin-top:8px">
+        <div><label>Employee</label><select id="fEmp"></select></div>
+        <div><label>Captured by</label><select id="fCap"></select></div>
+      </div>
+      <label>Type</label>
+      <select id="fType"><option value="">Wage + Casuals</option><option value="Wage">Wage only</option><option value="Casual">Casuals only</option></select>
+      <div class="toolbar"><button class="pbtn" id="refreshBtn">Refresh</button><button class="pbtn accent" id="exportBtn">Export CSV…</button></div>
+    </div>
+    <div id="summary"></div>
+    <div id="list"></div>
+  </div>
+
+  <div class="section" id="section-names">
+    <div class="panel"><h3>Employees</h3>
+      <div class="addrow"><input id="newEmp" placeholder="Add employee name"><button data-add="employees">Add</button></div>
+      <div class="chips" id="chips-employees"></div></div>
+    <div class="panel"><h3>Captured by</h3>
+      <div class="addrow"><input id="newCap" placeholder="Add name"><button data-add="capturers">Add</button></div>
+      <div class="chips" id="chips-capturers"></div></div>
+    <div class="panel"><h3>Projects</h3>
+      <div class="addrow"><input id="newProj" placeholder="Add project name"><button data-add="projects">Add</button></div>
+      <div class="chips" id="chips-projects"></div></div>
+    <div class="panel"><h3>Bring over old weekly sheets</h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Copies everything from the old "saved weeks" into the new live list, and adds all names found to the lists above. Safe to run more than once.</div>
+      <button class="pbtn primary" id="importOld">Import old weeks</button></div>
+  </div>
+</main>
+
+<button class="fab" id="fab">+ Add entry</button>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2 id="sheetTitle">Add entry</h2>
+    <label>Date</label><input type="date" id="sDate">
+    <label>Project</label><select id="sProj"></select>
+    <label>Captured by</label><select id="sCap"></select>
+    <div id="editBlock">
+      <label>Employee</label><select id="sEmp"></select>
+      <label>Type</label><select id="sType"><option value="Wage">Wage staff</option><option value="Casual">Casual</option></select>
+      <div class="grid2" style="margin-top:8px">
+        <div><label style="margin-top:0">In</label><input type="time" id="sIn"></div>
+        <div><label style="margin-top:0">Out</label><input type="time" id="sOut"></div>
+      </div>
+      <div id="sHrs" style="text-align:right;font-size:13px;font-weight:700;color:var(--accent);margin-top:6px"></div>
+    </div>
+    <div id="batchBlock">
+      <label>Who worked on this project? Tick names, then enter hours</label>
+      <div class="bulk"><input type="time" id="bIn"><input type="time" id="bOut"><button class="pbtn" id="bApply">Same hours for all ticked</button></div>
+      <div class="toolbar" style="margin:0 0 8px"><button class="pbtn" id="bAll">Tick all</button><button class="pbtn" id="bNone">Clear ticks</button></div>
+      <div id="bList"></div>
+    </div>
+    <div class="btns">
+      <button class="pbtn primary" id="sSave">Save entries</button>
+      <button class="pbtn danger" id="sDelete">Delete</button>
+      <button class="pbtn" id="sCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="xOverlay">
+  <div class="sheet">
+    <h2>Export to CSV</h2>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Exports every entry captured between the two dates, whatever day is showing on screen.</div>
+    <div class="grid2"><div><label>From</label><input type="date" id="xFrom"></div><div><label>To</label><input type="date" id="xTo"></div></div>
+    <div class="quick"><button data-xq="week">This week</button><button data-xq="lastweek">Last week</button><button data-xq="month">This month</button><button data-xq="lastmonth">Last month</button></div>
+    <div style="font-size:12px;color:var(--muted);margin:12px 0 0">Optional: leave everything unticked to export all.</div>
+    <details class="xf"><summary id="xsEmp">Employees: all</summary><div class="xlist" id="xEmp"></div></details>
+    <details class="xf"><summary id="xsProj">Projects: all</summary><div class="xlist" id="xProj"></div></details>
+    <details class="xf"><summary id="xsCap">Captured by: all</summary><div class="xlist" id="xCap"></div></details>
+    <div class="btns"><button class="pbtn primary" id="xGo">Export</button><button class="pbtn" id="xCancel">Cancel</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbxA8ulhlZr2E4HjCZoPKCfuPvPmAo-hfv0Sd6Z7nyG9Lrszpnt_ZPlw7gkxKZYgOUkq/exec';
+const WAGE_DAYS = ['Friday','Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday'];
+const CASUAL_DAYS = ['Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday','Friday'];
+const WEEKDAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const $ = id => document.getElementById(id);
+const notConfigured = () => API_URL.includes('PASTE_YOUR');
+
+let names = { employees: [], capturers: [], projects: [] };
+let entries = new Map();
+let F = { from:'', to:'' };
+let pending = [];
+try{ pending = JSON.parse(localStorage.getItem('jwh_pending') || '[]'); }catch(e){}
+let editing = null, flushing = false, sheetOpen = false;
+
+// ---------- helpers ----------
+const pad = n => String(n).padStart(2,'0');
+const toISO = d => d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+const parseISO = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const uid = () => 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function dateForDay(startISO, dayName){
+  const d = parseISO(startISO);
+  d.setDate(d.getDate() + ((WEEKDAYS.indexOf(dayName) - d.getDay() + 7) % 7));
+  return toISO(d);
+}
+function mins(t){ const m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? +m[1]*60 + +m[2] : null; }
+function hoursOf(a, b){
+  const s = mins(a), e = mins(b); if(s == null || e == null) return null;
+  let d = e - s; if(d < 0) d += 1440; return d / 60;
+}
+function opts(list, cur, blank){
+  const set = new Set(list); if(cur) set.add(cur);
+  return `<option value="">${blank}</option>` + [...set].sort((a,b) => a.localeCompare(b))
+    .map(n => `<option value="${esc(n)}"${n === cur ? ' selected' : ''}>${esc(n)}</option>`).join('');
+}
+let toastT;
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); }
+function setSync(s){
+  const el = $('sync');
+  if(s === 'ok'){ el.className = 'ok'; el.textContent = '✓ Saved'; }
+  else if(s === 'saving'){ el.className = 'saving'; el.textContent = 'Saving…'; }
+  else { el.className = 'off'; el.textContent = '⚠ Not synced (' + pending.length + ')'; }
+}
+
+// ---------- backend ----------
+async function apiSet(key, value){ const r = await fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'set', key, value }) }); return r.json(); }
+async function apiGet(key){ const r = await fetch(API_URL + '?action=get&key=' + encodeURIComponent(key)); return r.json(); }
+async function apiList(prefix){ const r = await fetch(API_URL + '?action=list&prefix=' + encodeURIComponent(prefix)); return r.json(); }
+async function getDay(date){
+  try{ const r = await apiGet('day:' + date); return r && r.value ? JSON.parse(r.value) : []; }
+  catch(e){ return []; }
+}
+async function mutateDay(date, fn){
+  const list = await getDay(date);           // always read fresh so other people's entries aren't overwritten
+  await apiSet('day:' + date, JSON.stringify(fn(list)));
+}
+function persistPending(){ try{ localStorage.setItem('jwh_pending', JSON.stringify(pending)); }catch(e){} }
+
+function queue(op){ pending.push(op); persistPending(); flush(); }
+async function flush(){
+  if(flushing) return;
+  if(notConfigured()){ if(pending.length) setSync('off'); return; }
+  if(!pending.length){ setSync('ok'); return; }
+  flushing = true; setSync('saving');
+  while(pending.length){
+    const op = pending[0];
+    try{
+      await mutateDay(op.date, list => {
+        const rest = list.filter(x => x.id !== op.entry.id);
+        return op.type === 'delete' ? rest : [...rest, op.entry];
+      });
+      pending.shift(); persistPending();
+    } catch(e){ flushing = false; setSync('off'); return; }
+  }
+  flushing = false; setSync('ok');
+}
+
+async function loadNames(){
+  if(notConfigured()) return;
+  try{ const r = await apiGet('config:names'); if(r && r.value){ const n = JSON.parse(r.value); names = { employees:n.employees||[], capturers:n.capturers||[], projects:n.projects||[] }; } }catch(e){}
+  renderNames(); renderFilters();
+}
+async function saveNames(){ if(!notConfigured()) try{ await apiSet('config:names', JSON.stringify(names)); }catch(e){ toast('Could not save names'); } }
+
+async function fetchRange(from, to){
+  const r = await apiList('day:');
+  const dates = (r && r.keys ? r.keys : []).map(k => k.replace('day:','')).filter(d => d >= from && d <= to);
+  const days = await Promise.all(dates.map(getDay));
+  const map = new Map();
+  days.forEach(list => list.forEach(e => map.set(e.id, e)));
+  pending.forEach(op => {                   // keep not-yet-synced changes visible
+    if(op.type === 'delete') map.delete(op.entry.id);
+    else if(op.entry.date >= from && op.entry.date <= to) map.set(op.entry.id, op.entry);
+  });
+  return map;
+}
+async function refresh(){
+  if(notConfigured() || sheetOpen) return;
+  try{ await flush(); entries = await fetchRange(F.from, F.to); render(); }
+  catch(e){ setSync('off'); }
+}
+
+// ---------- filters / render ----------
+function rangeFor(q){
+  const t = new Date(), a = new Date(t); let b = new Date(t);
+  const fri = d => d.setDate(d.getDate() - ((d.getDay() - 5 + 7) % 7));   // week runs Friday–Thursday
+  if(q === 'week'){ fri(a); b = new Date(a); b.setDate(a.getDate() + 6); }
+  else if(q === 'lastweek'){ fri(a); a.setDate(a.getDate() - 7); b = new Date(a); b.setDate(a.getDate() + 6); }
+  else if(q === 'month'){ a.setDate(1); }
+  else if(q === 'lastmonth'){ a.setMonth(t.getMonth() - 1, 1); b = new Date(t.getFullYear(), t.getMonth(), 0); }
+  return [toISO(a), toISO(b)];
+}
+function setDay(d){ F.from = F.to = d; $('fDay').value = d; render(); refresh(); }
+function renderFilters(){
+  const all = [...entries.values()];
+  $('fEmp').innerHTML = opts([...names.employees, ...all.map(e => e.name)], $('fEmp').value, 'All employees');
+  $('fCap').innerHTML = opts([...names.capturers, ...all.map(e => e.capturedBy)], $('fCap').value, 'Anyone');
+}
+function visible(){
+  const e = $('fEmp').value, c = $('fCap').value, t = $('fType').value;
+  return [...entries.values()].filter(x => x.date === F.from && (!e || x.name === e) && (!c || x.capturedBy === c) && (!t || x.type === t))
+    .sort((a,b) => (a.in || '').localeCompare(b.in || '') || a.name.localeCompare(b.name));
+}
+function render(){
+  renderFilters();
+  const rows = visible();
+  $('summary').innerHTML = `<div class="day-head"><span>${WEEKDAYS[parseISO(F.from).getDay()]} ${F.from}</span><span>${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}</span></div>`;
+  if(!rows.length){ $('list').innerHTML = '<div class="empty-hint">Nothing captured for this day yet.<br>Tap “+ Add entry” to capture.</div>'; return; }
+  $('list').innerHTML = rows.map(r => `<div class="entry" data-id="${r.id}">
+      <div><div class="n">${esc(r.name)}${r.type === 'Casual' ? '<span class="badge">CASUAL</span>' : ''}</div>
+        <div class="m">${esc(r.project) || 'No project'}${r.capturedBy ? ' · by ' + esc(r.capturedBy) : ''}</div></div>
+      <div class="h"><b>${esc(r.in) || '–'}</b><span>clock in</span></div></div>`).join('');
+}
+$('dPrev').addEventListener('click', () => { const d = parseISO(F.from); d.setDate(d.getDate() - 1); setDay(toISO(d)); });
+$('dNext').addEventListener('click', () => { const d = parseISO(F.from); d.setDate(d.getDate() + 1); setDay(toISO(d)); });
+$('dToday').addEventListener('click', () => setDay(toISO(new Date())));
+$('fDay').addEventListener('change', e => { if(e.target.value) setDay(e.target.value); });
+['fEmp','fCap','fType'].forEach(id => $(id).addEventListener('change', render));
+$('refreshBtn').addEventListener('click', async () => { await refresh(); toast('Up to date'); });
+$('list').addEventListener('click', e => { const el = e.target.closest('.entry'); if(el) openSheet(entries.get(el.dataset.id)); });
+
+// ---------- entry sheet ----------
+function fillSheetLists(emp, cap, proj){
+  $('sEmp').innerHTML = opts(names.employees, emp, 'Select employee');
+  $('sCap').innerHTML = opts(names.capturers, cap, names.capturers.length ? 'Select who is capturing' : 'Add names in the Names tab');
+  $('sProj').innerHTML = opts(names.projects, proj, names.projects.length ? 'Select project' : 'Add projects in the Names tab');
+}
+function updateHrs(){ const h = hoursOf($('sIn').value, $('sOut').value); $('sHrs').textContent = h != null ? h.toFixed(2) + ' hours' : ''; }
+function renderBatch(){
+  $('bList').innerHTML = [...names.employees].sort((a,b) => a.localeCompare(b)).map(n => `<div class="brow" data-name="${esc(n)}">
+    <label class="bcheck"><input type="checkbox"> ${esc(n)}</label>
+    <div class="bdet"><input type="time" class="bi"><input type="time" class="bo"><select class="bt"><option value="Wage">Wage</option><option value="Casual">Casual</option></select><span class="bh"></span></div></div>`).join('')
+    || '<div class="empty-hint">Add employees in the Names tab first.</div>';
+  $('bIn').value = ''; $('bOut').value = '';
+}
+function showRowHrs(row){ const h = hoursOf(row.querySelector('.bi').value, row.querySelector('.bo').value); row.querySelector('.bh').textContent = h != null ? h.toFixed(2) + 'h' : ''; }
+function tick(row, on){
+  row.querySelector('input[type=checkbox]').checked = on; row.classList.toggle('on', on);
+  if(on){ const i = row.querySelector('.bi'), o = row.querySelector('.bo'); if(!i.value) i.value = $('bIn').value; if(!o.value) o.value = $('bOut').value; showRowHrs(row); }
+}
+$('bList').addEventListener('change', e => { if(e.target.type === 'checkbox') tick(e.target.closest('.brow'), e.target.checked); });
+$('bList').addEventListener('input', e => { const r = e.target.closest('.brow'); if(r) showRowHrs(r); });
+$('bApply').addEventListener('click', () => document.querySelectorAll('.brow.on').forEach(r => { r.querySelector('.bi').value = $('bIn').value; r.querySelector('.bo').value = $('bOut').value; showRowHrs(r); }));
+$('bAll').addEventListener('click', () => document.querySelectorAll('.brow').forEach(r => tick(r, true)));
+$('bNone').addEventListener('click', () => document.querySelectorAll('.brow').forEach(r => tick(r, false)));
+
+function openSheet(e){
+  editing = e || null; sheetOpen = true;
+  $('sheetTitle').textContent = e ? 'Edit entry' : 'Add entries';
+  $('sDate').value = e ? e.date : ($('sDate').value || toISO(new Date()));
+  fillSheetLists(e ? e.name : '', e ? e.capturedBy : (localStorage.getItem('jwh_cap') || ''), e ? e.project : (localStorage.getItem('jwh_proj') || ''));
+  $('editBlock').style.display = e ? '' : 'none';
+  $('batchBlock').style.display = e ? 'none' : '';
+  if(e){ $('sType').value = e.type; $('sIn').value = e.in; $('sOut').value = e.out; } else renderBatch();
+  $('sDelete').style.display = e ? '' : 'none';
+  $('sSave').textContent = e ? 'Save changes' : 'Save entries';
+  updateHrs(); $('overlay').classList.add('open');
+}
+function closeSheet(){ sheetOpen = false; editing = null; $('overlay').classList.remove('open'); render(); }
+['sIn','sOut'].forEach(id => $(id).addEventListener('input', updateHrs));
+$('fab').addEventListener('click', () => { $('sDate').value = toISO(new Date()); openSheet(null); });
+$('sCancel').addEventListener('click', closeSheet);
+$('overlay').addEventListener('click', e => { if(e.target === $('overlay')) closeSheet(); });
+
+function pushEntry(e, old){
+  if(old && old.date !== e.date) queue({ type:'delete', date: old.date, entry: old });
+  queue({ type:'upsert', date: e.date, entry: e });
+  F.from = F.to = e.date; $('fDay').value = e.date;
+  entries.set(e.id, e);
+}
+function saveEntry(){
+  const date = $('sDate').value, project = $('sProj').value, cap = $('sCap').value, now = Date.now(), made = [];
+  if(!date){ toast('Pick a date'); return; }
+  if(!project){ toast('Select a project'); return; }
+  if(!cap){ toast('Select who is capturing'); return; }
+  if(editing){
+    const name = $('sEmp').value, i = $('sIn').value, o = $('sOut').value;
+    if(!name || !i || !o){ toast('Employee, in and out are required'); return; }
+    made.push({ old: editing, e: { id: editing.id, date, type: $('sType').value, name, project, capturedBy: cap, in: i, out: o, createdAt: editing.createdAt, updatedAt: now } });
+  } else {
+    const rows = [...document.querySelectorAll('.brow.on')];
+    if(!rows.length){ toast('Tick at least one employee'); return; }
+    for(const r of rows){
+      const i = r.querySelector('.bi').value, o = r.querySelector('.bo').value, name = r.dataset.name;
+      if(!i || !o){ toast('Enter in and out for ' + name); return; }
+      const dup = [...entries.values()].some(x => x.date === date && x.name === name && x.project === project);
+      if(dup && !confirm(name + ' already has an entry for this project on ' + date + '. Add another?')) return;
+      made.push({ e: { id: uid(), date, type: r.querySelector('.bt').value, name, project, capturedBy: cap, in: i, out: o, createdAt: now, updatedAt: now } });
+    }
+  }
+  made.forEach(m => pushEntry(m.e, m.old));
+  try{ localStorage.setItem('jwh_cap', cap); localStorage.setItem('jwh_proj', project); }catch(x){}
+  toast(made.length > 1 ? made.length + ' entries saved ✓' : 'Saved ✓'); closeSheet(); refresh();
+}
+$('sSave').addEventListener('click', saveEntry);
+$('sDelete').addEventListener('click', () => {
+  if(!editing || !confirm('Delete this entry?')) return;
+  queue({ type:'delete', date: editing.date, entry: editing });
+  entries.delete(editing.id); toast('Deleted'); closeSheet();
+});
+
+// ---------- names & import ----------
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab,.section').forEach(x => x.classList.remove('active'));
+  t.classList.add('active'); $('section-' + t.dataset.tab).classList.add('active');
+  $('fab').style.display = t.dataset.tab === 'entries' ? '' : 'none';
+}));
+function renderNames(){
+  ['employees','capturers','projects'].forEach(k => {
+    $('chips-' + k).innerHTML = [...names[k]].sort((a,b) => a.localeCompare(b))
+      .map(n => `<span class="chip">${esc(n)}<button data-del="${k}" data-name="${esc(n)}">&times;</button></span>`).join('') || '<span style="font-size:12px;color:var(--muted)">No names yet</span>';
+  });
+}
+document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.add, inp = $({employees:'newEmp',capturers:'newCap',projects:'newProj'}[k]), v = inp.value.trim();
+  if(v && !names[k].includes(v)){ names[k].push(v); saveNames(); renderNames(); renderFilters(); }
+  inp.value = '';
+}));
+document.addEventListener('click', e => {
+  if(e.target.dataset.del){ const k = e.target.dataset.del; names[k] = names[k].filter(n => n !== e.target.dataset.name); saveNames(); renderNames(); renderFilters(); }
+});
+$('importOld').addEventListener('click', async () => {
+  if(notConfigured()) return;
+  $('importOld').disabled = true; toast('Importing…');
+  try{
+    const r = await apiList('timesheet:');
+    const byDate = {}; let n = 0;
+    for(const k of (r && r.keys ? r.keys : [])){
+      const start = k.replace('timesheet:', '');
+      const g = await apiGet(k); if(!g || !g.value) continue;
+      const data = JSON.parse(g.value);
+      [['wage','Wage',WAGE_DAYS],['casuals','Casual',CASUAL_DAYS]].forEach(([key, type, days]) => (data[key] || []).forEach(w => {
+        if(w.name && !names.employees.includes(w.name.trim())) names.employees.push(w.name.trim());
+        if(w.capturedBy && !names.capturers.includes(w.capturedBy.trim())) names.capturers.push(w.capturedBy.trim());
+        if(w.project && w.project.trim() && !names.projects.includes(w.project.trim())) names.projects.push(w.project.trim());
+        days.forEach(day => {
+          const v = w.days && w.days[day]; if(!v || !v.in || !v.out) return;
+          const date = dateForDay(start, day);
+          (byDate[date] = byDate[date] || []).push({ id:'imp-' + start + '-' + key + '-' + w.id + '-' + day, date, type, name:(w.name||'').trim(),
+            project:w.project||'', capturedBy:(w.capturedBy||'').trim(), in:v.in, out:v.out, createdAt:Date.now(), updatedAt:Date.now() });
+        });
+      }));
+    }
+    for(const date of Object.keys(byDate)){
+      await mutateDay(date, list => { const have = new Set(list.map(x => x.id)); const add = byDate[date].filter(x => !have.has(x.id)); n += add.length; return [...list, ...add]; });
+    }
+    await saveNames(); renderNames();
+    toast(n + ' entries imported'); refresh();
+  } catch(e){ toast('Import failed: ' + e.message); }
+  $('importOld').disabled = false;
+});
+
+// ---------- CSV (own date range, independent of the day on screen) ----------
+const cs = v => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; };
+const closeExport = () => $('xOverlay').classList.remove('open');
+const XF = { xEmp:{key:'name', label:'Employees', list:() => names.employees}, xProj:{key:'project', label:'Projects', list:() => names.projects}, xCap:{key:'capturedBy', label:'Captured by', list:() => names.capturers} };
+const xSelected = id => [...$(id).querySelectorAll('input:checked')].map(i => i.value);
+function updateXSummary(id){ const n = xSelected(id).length; $('xs' + id.slice(1)).textContent = XF[id].label + ': ' + (n ? n + ' selected' : 'all'); }
+function buildExportLists(){
+  const loaded = [...entries.values()];
+  Object.keys(XF).forEach(id => {
+    const c = XF[id];
+    const vals = [...new Set([...c.list(), ...loaded.map(e => e[c.key])].filter(Boolean))].sort((a,b) => a.localeCompare(b));
+    $(id).innerHTML = '<button type="button" class="pbtn" data-clear="' + id + '" style="margin-bottom:4px">Clear ticks</button>' +
+      (vals.map(v => `<label class="xi"><input type="checkbox" value="${esc(v)}"> ${esc(v)}</label>`).join('') || '<div class="empty-hint" style="padding:8px">None yet</div>');
+    updateXSummary(id);
+  });
+}
+$('xOverlay').addEventListener('change', e => { const l = e.target.closest('.xlist'); if(l) updateXSummary(l.id); });
+$('xOverlay').addEventListener('click', e => { const id = e.target.dataset.clear; if(id){ $(id).querySelectorAll('input').forEach(i => i.checked = false); updateXSummary(id); } });
+$('exportBtn').addEventListener('click', () => { const [a, b] = rangeFor('week'); $('xFrom').value = a; $('xTo').value = b; buildExportLists(); $('xOverlay').classList.add('open'); });
+$('xCancel').addEventListener('click', closeExport);
+$('xOverlay').addEventListener('click', e => { if(e.target === $('xOverlay')) closeExport(); });
+document.querySelectorAll('[data-xq]').forEach(b => b.addEventListener('click', () => { const [x, y] = rangeFor(b.dataset.xq); $('xFrom').value = x; $('xTo').value = y; }));
+$('xGo').addEventListener('click', async () => {
+  const from = $('xFrom').value, to = $('xTo').value;
+  if(!from || !to){ toast('Pick both dates'); return; }
+  if(from > to){ toast('From date is after To date'); return; }
+  $('xGo').disabled = true; toast('Preparing export…');
+  try{
+    const sel = Object.keys(XF).map(id => [XF[id].key, xSelected(id)]).filter(([, v]) => v.length);
+    const rows = [...(await fetchRange(from, to)).values()].filter(r => sel.every(([k, v]) => v.includes(r[k])))
+      .sort((a,b) => a.date.localeCompare(b.date) || (a.in || '').localeCompare(b.in || '') || a.name.localeCompare(b.name));
+    if(!rows.length) toast('Nothing captured for that selection');
+    else {
+      const lines = [['Date','Day','Employee','Type','Project','In','Out','Hours','Captured By']];
+      rows.forEach(r => { const h = hoursOf(r.in, r.out); lines.push([r.date, WEEKDAYS[parseISO(r.date).getDay()], r.name, r.type, r.project, r.in, r.out, h != null ? h.toFixed(2) : '', r.capturedBy]); });
+      lines.push(['','','','','','','Total', rows.reduce((s, r) => s + (hoursOf(r.in, r.out) || 0), 0).toFixed(2), '']);
+      const url = URL.createObjectURL(new Blob([lines.map(l => l.map(cs).join(',')).join('\n')], {type:'text/csv'}));
+      const a = document.createElement('a'); a.href = url; a.download = 'JWH_Timesheet_' + from + '_to_' + to + (sel.length ? '_filtered' : '') + '.csv';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      closeExport(); toast(rows.length + ' entries exported');
+    }
+  } catch(e){ toast('Export failed: ' + e.message); }
+  $('xGo').disabled = false;
+});
+
+// ---------- init: load, then keep everyone's view live ----------
+(function init(){
+  if(notConfigured()) $('setupBanner').style.display = 'block';
+  renderNames();
+  setDay(toISO(new Date()));
+  loadNames();
+  if(pending.length) setSync('off'); 
+  setInterval(refresh, 20000);                       // pick up other people's captures automatically
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) refresh(); });
+  window.addEventListener('online', () => { flush().then(refresh); });
+})();
+</script>
+</body>
+</html>
